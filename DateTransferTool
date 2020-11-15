@@ -1,0 +1,93 @@
+--数据传递工具
+--version 1.0 Alpha
+--by Billy
+--467360906@qq.com
+--2020/11/14
+----------------------------------------------
+--版权归原作者所有,感谢其无私奉献
+--插件功能
+--1.按参考物体的法线修改目标法线方向
+----------------------------------------------
+
+
+
+
+DataTransfer=newRolloutFloater "数据传输" 300 570 
+rollout NormalTransfer "法线映射" width:260 height:596 
+(
+    local refObj
+    local tagObj
+    label FristStep "1." pos:[5,15] across:2
+    pickbutton RefObject"<<拾取参考物体>>" pos:[20,10] width:260
+    label SecondStep "2.   先拾取参考物体，然后拾取需被修改的目标物体" pos:[5,40] 
+    label ThirdStep "3." pos:[5,65] across:2
+    pickbutton TagObject"<<拾取目标物体>>" enabled:false  pos:[20,60] width:260
+    button  ConvertNormal"法线映射" enabled:false width:150 height:50
+
+--当拾取参考物体
+    on RefObject picked obj do(
+        RefObject.caption = "参考 -> " + obj.name
+        refObj = obj
+        TagObject.enabled =true
+     )
+
+--当拾取目标物体
+    on TagObject picked obj do(
+        TagObject.caption =  "目标 -> " + obj.name
+        tagObj = obj
+        ConvertNormal.enabled = true
+    )
+
+--当按下法线映射
+    on ConvertNormal pressed do(
+        --定义一个数组用来存放目标物体顶点位置
+        tagObjetVert=#()
+        --将tagObj物体转换成EditavleMesh
+        convertToMesh tagObj
+        --得到Mesh所拥有的顶点总数
+        num_tagObjVert = getNumVerts tagObj
+        --遍历目标物体的每一个顶点的位置
+        for i=1 to num_tagObjVert do (
+            vertPos = getVert tagObj i
+            append tagObjetVert vertPos
+        )
+
+        --定义一个数组用来存放参考物体顶点位置
+        refObjectVert=#()
+        --将refObj物体转换成EditavleMesh
+        convertToMesh refObj
+        --得到Mesh所拥有的顶点总数
+        num_refObjVert = getNumVerts refObj
+        --遍历目标物体的每一个顶点的位置
+        for i=1 to num_refObjVert do (
+        vertPos = getVert refObj i
+        append refObjectVert vertPos 
+    )
+        --定义一个数组用来存放计算过后用来参考的顶点ID
+        refVertID=#()
+        --遍历目标物体的每一个顶点，然后与参考物体的顶点做对比找出距离最近的点
+        --得到与目标物体每一个顶点最近的参考物体顶点ID
+        for i=1 to tagObjetVert.count do (
+            dis_refObj2tagObj = #(#(),#())
+            for j =1 to refObjectVert.count do(
+                append dis_refObj2tagObj[1] j
+                dis =  distance tagObjetVert[i] refObjectVert[j]
+                append dis_refObj2tagObj[2] dis
+            )
+            min_dis = amin dis_refObj2tagObj[2]
+            index = findItem dis_refObj2tagObj[2] min_dis
+            vertID = dis_refObj2tagObj[1] [index]
+            append refVertID vertID
+            ---------------------------------用来Debug查看数据----------------------------------------
+            Debug_VertID = "目标物体顶点ID："+(i as string)+"最近的参考物体顶点ID："+(vertID as string)
+        )
+        --用得到的参考顶点ID得到该顶点的Normal
+        --将得到的Normal赋值给相对应的目标顶点
+        for i=1 to num_tagObjVert do(
+            refNormal = getNormal refObj refVertID[i]
+            setNormal tagObj i refNormal
+        )
+    )
+)
+
+addRollout NormalTransfer DataTransfer
